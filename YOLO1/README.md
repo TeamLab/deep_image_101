@@ -1,6 +1,6 @@
 ## Implementation Generative Adversarial Text-to-Image Synthesis
 
-Image Source : [You Only Look Once: Unified, Real-Time Object Detection][1] Paper
+Image Source : [You Only Look Once: Unified, Real-Time Object Detection][1] Paper <br></br>
 Sorce code Implementation : [here][2] 
 
 [1]:https://pjreddie.com/media/files/papers/yolo.pdf
