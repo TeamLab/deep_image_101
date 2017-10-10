@@ -1,47 +1,28 @@
-import pandas as pd
-import numpy as np
-import os
-from tqdm import tqdm
 import cv2
-from sklearn.model_selection import train_test_split
+import numpy as np
+from tqdm import tqdm
+import pandas as pd
+import os
 
-df_train = pd.read_csv('labels.csv')
-df_test = pd.read_csv('sample_submission.csv')
+df = pd.read_csv('labels.csv')
+df.head()
 
-df_train.head(10)
+n = len(df)
+breed = set(df['breed'])
+n_class = len(breed)
+class_to_num = dict(zip(breed, range(n_class)))
+num_to_class = dict(zip(range(n_class), breed))
 
-targets_series = pd.Series(df_train['breed'])
-one_hot = pd.get_dummies(targets_series, sparse = True)
+width = 32
+X = np.zeros((n, width, width, 3), dtype=np.uint8)
+y = np.zeros((n, n_class), dtype=np.uint8)
+for i in tqdm(range(n)):
+    X[i] = cv2.resize(cv2.imread('train/%s.jpg' % df['id'][i]), (width, width))
+    y[i][class_to_num[df['breed'][i]]] = 1
 
-one_hot_labels = np.asarray(one_hot)
-
-im_size = 299
-
-x_train = []
-y_train = []
-x_test = []
-
-i = 0
-
-for f, breed in tqdm(df_train.values):
-    img = cv2.imread('./train/{}.jpg'.format(f))
-    label = one_hot_labels[i]
-    x_train.append(cv2.resize(img, (im_size, im_size)))
-    y_train.append(label)
-    i += 1
-
-y_train_raw = np.array(y_train, np.uint8)
-x_train_raw = np.array(x_train, np.float32) / 255.
-x_test  = np.array(x_test, np.float32) / 255.
-
-num_class = y_train_raw.shape[1]
-
-X_train, X_valid, Y_train, Y_valid = train_test_split(x_train_raw,
-                                                      y_train_raw, test_size = 0.2,
-                                                      random_state = 1)
-
+X = np.array(X, np.float32) / 255.
 savepath = os.getcwd()+"/data.npz"
-np.savez(savepath,trainimg=X_train,trainlabel=Y_train,
-        testimg=X_valid,testlabel=Y_valid,imgsize=im_size)
+np.savez(savepath, trainimg=X, trainlabel=y)
 
-print("data saved to %s"%(savepath))
+print("data saved to %s" % savepath)
+
