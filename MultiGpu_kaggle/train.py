@@ -4,10 +4,13 @@ import tensorflow as tf
 import time
 from datetime import datetime
 import os
+import pandas as pd
+from scipy.misc import imresize, imread
+from tqdm import tqdm
 
 class MultiGpu(object):
-    def __init__(self,  image_size= 32, image_channel = 3,n_gpu=1, data_path = 'data.npz', n_class = 120,
-                  max_step=100000, batch_size=32, TOWER_NAME='tower'):
+    def __init__(self,  image_size= 32, image_channel= 3, n_gpu=1, data_path= 'data.npz', n_class = 120,
+                  max_step=100, batch_size=32, TOWER_NAME='tower'):
 
         self.n_gpu = n_gpu
         self.max_step = max_step
@@ -25,6 +28,20 @@ class MultiGpu(object):
         self.RMSPROP_MOMENTUM = 0.9
         self.RMSPROP_EPSILON = 1.0
 
+    def load_test(self):
+
+        df_test = pd.read_csv('sample_submission.csv')
+        df = pd.read_csv('labels.csv')
+        breed = set(df['breed'])
+        class_to_num = dict(zip(breed, range(self.n_class)))
+        NUMBER_TEST = len(df_test)
+        X_test = np.zeros((NUMBER_TEST, self.image_size, self.image_size, 3), dtype=np.uint8)
+
+        for i in tqdm(range(NUMBER_TEST)):
+            X_test[i] = imresize(imread('test/%s.jpg' % df_test['id'][i]), (self.image_size, self.image_size))
+        X_test = np.array(X_test, np.float32) / 255.
+
+        return X_test , df_test, breed, class_to_num
 
     def load_data(self, path):
 
@@ -40,9 +57,9 @@ class MultiGpu(object):
         return train_image,train_label
 
 
-    def tower_loss(self, scope, batch,image, label):
+    def tower_loss(self, scope, image, label):
 
-        logits = m.inference(image, batch)
+        logits = m.inference(image)
 
         labels = tf.cast(label, tf.int64)
 
@@ -127,7 +144,7 @@ class MultiGpu(object):
                             print('image_batch', image_batch)
                             print('image_label', label_batch)
 
-                            loss = self.tower_loss(scope, self.batch_size, image_batch,label_batch)
+                            loss = self.tower_loss(scope, image_batch,label_batch)
                             tf.get_variable_scope().reuse_variables()
 
                             grads = optimizer.compute_gradients(loss)
@@ -184,8 +201,22 @@ class MultiGpu(object):
                 if step % 10000 == 0 or (step + 1) == self.max_step:
                     saver.save(sess, './checkpoint/model', global_step=step)
 
-        finish_time = time.time() - learning_time
-        print('Time taken : ', finish_time)
+            finish_time = time.time() - learning_time
+            print('Learning finish : ', finish_time)
+
+            X_test, df_test, breed, class_to_num = self.load_test()
+            tf.get_variable_scope().reuse_variables()
+            logits = m.inference(X_test)
+            softmax_logits = tf.nn.softmax(logits)
+            predict = sess.run(softmax_logits)
+
+            for b in breed:
+                df_test[b] = predict[:, class_to_num[b]]
+
+            df_test.to_csv('predict.csv', index=None)
 
 
 MultiGpu().train()
+
+
+

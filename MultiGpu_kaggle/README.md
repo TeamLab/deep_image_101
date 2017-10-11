@@ -1,9 +1,9 @@
 ## project kaggle Dog Breed Identification
-### Model implement inception-v4
-* inception-v4: [Paper][1] <br></br>
+### Model implement cifar-10
+
 * Download kaggle data : [here][2] <br></br>
 
-1) Download Kaggle data and unzip. <br></br>
+1) Download Kaggle data and unzip in same directory. <br></br>
 2) run python data_load.py <br></br>
 3) run train.py 
 

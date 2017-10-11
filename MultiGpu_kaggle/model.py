@@ -21,7 +21,7 @@ def _variable_with_weight_decay(name, shape, stddev, wd):
     return var
 
 
-def inference(images,batch):
+def inference(images):
 
     # conv1
     with tf.variable_scope('conv1') as scope:
@@ -64,7 +64,7 @@ def inference(images,batch):
     # local3
     with tf.variable_scope('local3') as scope:
 
-        reshape = tf.reshape(pool2, [batch, -1])
+        reshape = tf.reshape(pool2, [-1, 8*8*64])
         dim = reshape.get_shape()[1].value
         weights = _variable_with_weight_decay('weights', shape=[dim, 384],
                                           stddev=0.04, wd=0.004)
