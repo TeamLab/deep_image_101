@@ -99,7 +99,7 @@
     
     -Usage
     ~~~
-    from visualizer import *
+    from visualize import *
     
     cam(model, img_dir, out_dir, img_normalize=True, histogram_equalizer=True)
     ~~~

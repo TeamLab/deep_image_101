@@ -37,7 +37,7 @@ def unet(img_h, img_w, channel, classes=1, num_filter=64, kernel_size=3, init='h
     up7 = Conv2D(4*num_filter, 2,
                  activation='relu',
                  padding='same',
-                 kernel_initializer=init)(\UpSampling2D(size=(2, 2))(conv6))
+                 kernel_initializer=init)(UpSampling2D(size=(2, 2))(conv6))
 
     merge7 = merge([conv3, up7], mode='concat', concat_axis=3)
     conv7 = Conv2D(4*num_filter, kernel_size, activation='relu', padding='same', kernel_initializer=init)(merge7)
