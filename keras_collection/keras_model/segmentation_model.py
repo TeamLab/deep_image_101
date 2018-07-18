@@ -1,6 +1,7 @@
 from keras.models import *
 from keras.layers import *
-
+from keras.applications import *
+from keras.regularizers import *
 
 def unet(img_h, img_w, channel, classes=1, num_filter=64, kernel_size=3, init='he_normal'):
     inputs = Input((img_h, img_w, channel))
@@ -65,4 +66,87 @@ def unet(img_h, img_w, channel, classes=1, num_filter=64, kernel_size=3, init='h
 
     model = Model(input=inputs, output=conv10)
     model.summary()
+    return model
+
+
+'''
+
+original paper : large kernel matter
+origianl paper url -> https://arxiv.org/abs/1703.02719
+
+'''
+
+
+def GCN(layer, k=18):
+    conv1 = Conv2D(21, (k, 1), activation=None, padding='same')(layer)
+    conv1 = Conv2D(21, (1, k), activation=None, padding='same')(conv1)
+
+    conv2 = Conv2D(21, (1, k), activation=None, padding='same')(layer)
+    conv2 = Conv2D(21, (k, 1), activation=None, padding='same')(conv2)
+
+    merge = Add()([conv1, conv2])
+    return merge
+
+
+def BR(layer):
+    conv = Conv2D(21, (3, 3), activation='relu', padding='same')(layer)
+    conv = Conv2D(21, (3, 3), activation=None, padding='same')(conv)
+
+    merge = Add()([layer, conv])
+    return merge
+
+
+def upsampling(layer):
+    up = UpSampling2D(size=(2, 2))(layer)
+    up = Conv2D(21, (3, 3), activation='relu', padding='same')(up)
+    up = Conv2D(21, (3, 3), activation='relu', padding='same')(up)
+    return up
+
+
+def large_kernel_matters_model(img_h, img_w, classes, channel=3, summary=True):
+    img_input = Input(shape=(img_h, img_w, channel), name="image_input")
+    resnet = ResNet50(input_tensor=img_input, weights=None, include_top=False)
+
+    res_5 = resnet.get_layer(name='activation_49').output
+    res_4 = resnet.get_layer(name='activation_40').output
+    res_3 = resnet.get_layer(name='activation_22').output
+    res_2 = ZeroPadding2D(padding=((1, 0), (1, 0)))(resnet.get_layer(name='activation_10').output)
+
+    gcn_1 = GCN(res_5)
+    br_1 = BR(gcn_1)
+    deconv_1 = upsampling(br_1)
+
+    gcn_2 = GCN(res_4)
+    br_2 = BR(gcn_2)
+    merge_2 = Add()([deconv_1, br_2])
+    br_2 = BR(merge_2)
+    deconv_2 = upsampling(br_2)
+
+    gcn_3 = GCN(res_3)
+    br_3 = BR(gcn_3)
+    merge_3 = Add()([deconv_2, br_3])
+    br_3 = BR(merge_3)
+    deconv_3 = upsampling(br_3)
+
+    gcn_4 = GCN(res_2)
+    br_4 = BR(gcn_4)
+    merge_4 = Add()([deconv_3, br_4])
+    br_4 = BR(merge_4)
+    deconv_4 = upsampling(br_4)
+
+    br_5 = BR(deconv_4)
+    deconv_5 = upsampling(br_5)
+    br_5 = BR(deconv_5)
+
+    predict = Conv2D(classes, (1, 1), activation='sigmoid', padding='same')(br_5)
+
+    model = Model(inputs=img_input, outputs=predict)
+
+    for layer in model.layers:
+        if hasattr(layer, 'kernel_regularizer'):
+            layer.kernel_regularizer = l2(0.0005)
+
+    if summary:
+        model.summary()
+
     return model

@@ -66,6 +66,13 @@
     unet(img_h, img_w, channel, num_filter=64, kernel_size=3, init='he_normal')
     ~~~
     
+    -Large kernel matters(https://arxiv.org/abs/1703.02719)
+    ~~~
+    from segmentation_model import *
+    
+    large_kernel_matters_model(img_h, img_w, classes, channel=3, summary=True)
+    ~~~
+    
     5.2) Classification
     
     -Xception
