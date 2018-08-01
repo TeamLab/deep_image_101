@@ -65,3 +65,54 @@ def cam(model, img_dir, out_dir, img_normalize=True, histogram_equalizer=True):
     plt.imshow(result)
     plt.imsave(out_dir, result)
     print("save image at {}".format(out_dir))
+
+
+'''
+Grad-Cam : https://arxiv.org/abs/1610.02391
+class activation map should use GAP, so model structure is limited.
+But grad-cam uses gradient. It is not affected by the model structure.
+'''
+
+def grad_cam(model, img_tensor, save_dir):
+
+    img_h = img_tensor.shape[0]
+    img_w = img_tensor.shape[1]
+    img_c = img_tensor.shape[2]
+
+    reshape_img = np.reshape(img_tensor, [1, img_h, img_w, img_c])
+    y_pred = model.predict(reshape_img)
+    y_pred = np.argmax(y_pred, axis=1)
+    print("predict label : {}".format(y_pred))
+
+    inputs = model.input
+    y_c = model.output.op.inputs[0][0, y_pred]
+    A_k = []
+
+    for i, layer in enumerate(model.layers):
+        if model.layers[i].name == 'latent_conv':
+            A_k = model.get_layer(name='latent_conv').output
+
+    a_k = K.function([inputs], [A_k, K.gradients(y_c, A_k)[0], model.output])
+    [target_layer_output, grad_val, model_output] = a_k([img_tensor])
+
+    target_layer_output = target_layer_output[0]
+    grad_val = grad_val[0]
+    grad_weights = np.mean(grad_val, axis=(0, 1))
+
+    grad_cam = np.zeros(dtype=np.float32, shape=target_layer_output.shape[0:2])
+    for k, w in enumerate(grad_weights):
+        grad_cam += w * target_layer_output[:, :, k]
+
+    grad_cam = cv2.resize(grad_cam, (img_h, img_w))
+    grad_cam = np.maximum(grad_cam, 0)
+    activationmap = grad_cam / grad_cam.max()
+
+    # heatmap
+    heatmap = cv2.applyColorMap(np.uint8(255 * activationmap), cv2.COLORMAP_JET)
+
+    # convert grayscale img to BGR img ( cv2 default BGR not RBG )
+    if img_c != 3:
+        img_tensor = cv2.cvtColor(img_tensor, cv2.COLOR_GRAY2BGR)
+
+    activation_img = (heatmap * 0.3) + (img_tensor * 0.7)
+    cv2.imwrite(save_dir, activation_img)
