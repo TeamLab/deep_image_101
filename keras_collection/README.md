@@ -112,6 +112,15 @@
     ~~~
     
     6.2 Grad-CAM (Gradient Class Activation Map)
+        
+    - original paper url : https://arxiv.org/abs/1610.02391
+    
+    ~~~
+    '''
+    target layer name shold be "latent_conv"
+    '''
+    grad_cam(model, img_tensor, save_dir)
+    ~~~
     
     
     
